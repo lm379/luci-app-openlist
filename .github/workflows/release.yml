@@ -2,8 +2,8 @@ name: Build-lua
 
 on:
   push:
-    branches:
-      - lua
+    tags:
+      - "*"
 
 jobs:
   build:
