@@ -1,6 +1,6 @@
 local m, s
 
-m = Map("openlist", translate("openlist"), translate("A file list program that supports multiple storage.") .. "<br/>" .. [[<a href="https://openlist.nn.ci/zh/guide/drivers/local.html" target="_blank">]] .. translate("User Manual") .. [[</a>]])
+m = Map("openlist", translate("openlist"), translate("A file list program that supports multiple storage.") .. "<br/>" .. [[<a href="https://docs.oplist.org/zh/guide/" target="_blank">]] .. translate("User Manual") .. [[</a>]])
 
 m:section(SimpleSection).template  = "openlist/openlist_status"
 

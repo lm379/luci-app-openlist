@@ -1,4 +1,4 @@
-# luci-app-alist - for openwrt-18.06
+# luci-app-openlist - for openwrt-18.06
 
 A file list program that supports multiple storage.
 
@@ -32,11 +32,11 @@ A file list program that supports multiple storage.
   git clone https://github.com/sbwml/packages_lang_golang -b 23.x feeds/packages/lang/golang
   ```
 
-  *2. get luci-app-alist source & building*
+  *2. get luci-app-openlist source & building*
   ```shell
-  git clone https://github.com/sbwml/luci-app-alist -b lua package/alist
-  make menuconfig # choose LUCI -> Applications -> luci-app-alist
-  make package/alist/luci-app-alist/compile V=s # build luci-app-alist
+  git clone https://github.com/lm379/luci-app-openlist -b lua package/openlist
+  make menuconfig # choose LUCI -> Applications -> luci-app-openlist
+  make package/openlist/luci-app-openlist/compile V=s # build luci-app-openlist
   ```
 
 --------------
