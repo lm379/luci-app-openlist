@@ -1,10 +1,7 @@
 name: Sync Upstream Release Hash
 on:
-  # schedule:
-  #   - cron: '0 */4 * * *'  # 每4小时运行一次
-    push:
-      branches:
-      - lua
+  schedule:
+    - cron: '0 */4 * * *'  # 每4小时运行一次
 
 
 jobs:
