@@ -1,0 +1,105 @@
+name: Sync Upstream Release Hash
+on:
+  # schedule:
+  #   - cron: '0 */4 * * *'  # 每4小时运行一次
+    push:
+      branches:
+      - lua
+
+
+jobs:
+  update_makefile:
+    runs-on: ubuntu-latest
+    steps:
+      # 检出当前仓库代码
+      - name: Checkout Current Repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      # 获取上游仓库的 Release Version
+      - name: Fetch Upstream Release Version
+        id: get_release_OpenList
+        run: |
+          # 通过 API 获取最新 Release 的 Tag 名称
+          API_URL="https://api.github.com/repos/OpenListTeam/OpenList/releases/latest"
+          API_URL_FRONTEND="https://api.github.com/repos/OpenListTeam/OpenList-Frontend/releases/latest"
+          TAG_NAME=$(curl -s $API_URL | jq -r '.tag_name')
+          FRONTEND_TAG_NAME=$(curl -s $API_URL_FRONTEND | jq -r '.tag_name')
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "FRONTEND_TAG_NAME=$FRONTEND_TAG_NAME" >> $GITHUB_ENV
+
+      # 检查是否有更新
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          # 检查当前版本与上游版本是否一致
+          CURRENT_VERSION=$(grep "^PKG_VERSION:=" openlist/Makefile | cut -d'=' -f2)
+          if [ "$CURRENT_VERSION" != "${UPSTREAM_VERSION}" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Found version update: $CURRENT_VERSION -> ${UPSTREAM_VERSION#v}"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No version update needed"
+          fi
+
+      # 获取上游仓库的 Release 信息（Hash 和版本号）
+      - name: Fetch Upstream Release Data
+        id: get_release_data
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          # 获取对应tag的commit hash
+          COMMIT_HASH=$(curl -s "https://api.github.com/repos/OpenListTeam/OpenList/git/refs/tags/$TAG_NAME" | jq -r '.object.sha')
+          FRONTEND_COMMIT_HASH=$(curl -s "https://api.github.com/repos/OpenListTeam/OpenList-Frontend/git/refs/tags/$FRONTEND_TAG_NAME" | jq -r '.object.sha')
+          
+          # 下载源码包并计算hash
+          SOURCE_URL="https://codeload.github.com/OpenListTeam/OpenList/tar.gz/$TAG_NAME"
+          FRONTEND_URL="https://github.com/OpenListTeam/OpenList-Frontend/releases/download/$FRONTEND_TAG_NAME/openlist-frontend-dist-$FRONTEND_TAG_NAME.tar.gz"
+          
+          # 下载并计算主项目源码包的hash
+          wget -O openlist-source.tar.gz "$SOURCE_URL"
+          PKG_HASH=$(sha256sum openlist-source.tar.gz | cut -d' ' -f1)
+          
+          # 下载并计算前端文件的hash
+          wget -O openlist-frontend.tar.gz "$FRONTEND_URL"
+          FRONTEND_HASH=$(sha256sum openlist-frontend.tar.gz | cut -d' ' -f1)
+          
+          echo "UPSTREAM_VERSION=$TAG_NAME" >> $GITHUB_ENV
+          echo "FRONTEND_VERSION=$FRONTEND_TAG_NAME" >> $GITHUB_ENV
+          echo "PKG_HASH=$PKG_HASH" >> $GITHUB_ENV
+          echo "FRONTEND_HASH=$FRONTEND_HASH" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+          echo "FRONTEND_COMMIT_HASH=$FRONTEND_COMMIT_HASH" >> $GITHUB_ENV
+          
+          # 清理临时文件
+          rm -f openlist-source.tar.gz openlist-frontend.tar.gz
+
+
+      #更新 Makefile 中的相关字段
+      - name: Update Makefile
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          # 更新主项目的Makefile
+          cd openlist
+          sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=${UPSTREAM_VERSION#v}/" Makefile
+          sed -i "s/^PKG_WEB_VERSION:=.*/PKG_WEB_VERSION:=${FRONTEND_VERSION#v}/" Makefile
+          sed -i "s/HASH:=.*/HASH:=${FRONTEND_HASH}/" Makefile
+          sed -i "s/^PKG_HASH:=.*/PKG_HASH:=${PKG_HASH}/" Makefile
+
+      # 提交修改后的 Makefile
+      - name: Commit Changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config user.name "lm379"
+          git config user.email "action@github.com"
+          git add openlist/Makefile luci-app-openlist/Makefile
+          git commit -m "chore: Update upstream to ${UPSTREAM_VERSION}"
+          git push origin lua
+
+      # 创建并推送标签
+      - name: Create and Push Tag
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git tag "${UPSTREAM_VERSION}"
+          git push origin "${UPSTREAM_VERSION}"
