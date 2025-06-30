@@ -33,9 +33,9 @@ jobs:
         run: |
           # 检查当前版本与上游版本是否一致
           CURRENT_VERSION=$(grep "^PKG_VERSION:=" openlist/Makefile | cut -d'=' -f2)
-          if [ "$CURRENT_VERSION" != "${UPSTREAM_VERSION}" ]; then
+          if [ "$CURRENT_VERSION" != "${TAG_NAME#v}" ]; then
             echo "changes=true" >> $GITHUB_OUTPUT
-            echo "Found version update: $CURRENT_VERSION -> ${UPSTREAM_VERSION#v}"
+            echo "Found version update: $CURRENT_VERSION -> ${TAG_NAME#v}"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
             echo "No version update needed"
@@ -46,10 +46,6 @@ jobs:
         id: get_release_data
         if: steps.check_changes.outputs.changes == 'true'
         run: |
-          # 获取对应tag的commit hash
-          COMMIT_HASH=$(curl -s "https://api.github.com/repos/OpenListTeam/OpenList/git/refs/tags/$TAG_NAME" | jq -r '.object.sha')
-          FRONTEND_COMMIT_HASH=$(curl -s "https://api.github.com/repos/OpenListTeam/OpenList-Frontend/git/refs/tags/$FRONTEND_TAG_NAME" | jq -r '.object.sha')
-          
           # 下载源码包并计算hash
           SOURCE_URL="https://codeload.github.com/OpenListTeam/OpenList/tar.gz/$TAG_NAME"
           FRONTEND_URL="https://github.com/OpenListTeam/OpenList-Frontend/releases/download/$FRONTEND_TAG_NAME/openlist-frontend-dist-$FRONTEND_TAG_NAME.tar.gz"
@@ -66,8 +62,6 @@ jobs:
           echo "FRONTEND_VERSION=$FRONTEND_TAG_NAME" >> $GITHUB_ENV
           echo "PKG_HASH=$PKG_HASH" >> $GITHUB_ENV
           echo "FRONTEND_HASH=$FRONTEND_HASH" >> $GITHUB_ENV
-          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
-          echo "FRONTEND_COMMIT_HASH=$FRONTEND_COMMIT_HASH" >> $GITHUB_ENV
           
           # 清理临时文件
           rm -f openlist-source.tar.gz openlist-frontend.tar.gz
@@ -92,7 +86,7 @@ jobs:
           git config user.email "action@github.com"
           git add openlist/Makefile luci-app-openlist/Makefile
           git commit -m "chore: Update upstream to ${UPSTREAM_VERSION}"
-          git push origin lua
+          git push origin main
 
       # 创建并推送标签
       - name: Create and Push Tag
